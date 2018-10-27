@@ -90,7 +90,9 @@ withCompletionBlock:(GFCompletionBlock)block
         NSNumber *lat = [NSNumber numberWithDouble:location.coordinate.latitude];
         NSNumber *lng = [NSNumber numberWithDouble:location.coordinate.longitude];
         NSString *geoHash = [GFGeoHash newWithLocation:location.coordinate].geoHashValue;
-        value = @{ @"l": @[ lat, lng ], @"g": geoHash };
+        NSDictionary *timestamp = [FIRServerValue timestamp];
+        NSNumber *popularity = [NSNumber numberWithInteger:0];
+        value = @{ @"l": @[ lat, lng ], @"g": geoHash, @"t": timestamp, @"p": popularity };
     } else {
         value = nil;
     }

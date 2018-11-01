@@ -25,81 +25,109 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#import <FirebaseDatabase/FirebaseDatabase.h>
 
 #import <Foundation/Foundation.h>
 #import <CoreLocation/CoreLocation.h>
+#import <MapKit/MapKit.h>
+
+#import "GFQuery.h"
+#import "GFCircleQuery.h"
+#import "GFRegionQuery.h"
+
+@class FIRDatabaseReference;
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef NSUInteger FirebaseHandle;
-
-@class GeoFire;
-
-typedef NS_ENUM(NSUInteger, GFEventType) {
-    GFEventTypeKeyEntered,
-    GFEventTypeKeyExited,
-    GFEventTypeKeyMoved
-};
-
-typedef void (^GFQueryResultBlock) (NSString *key, CLLocation *location, NSNumber *popuplarity);
-typedef void (^GFReadyBlock) (void);
+typedef void (^GFCompletionBlock) (NSError * _Nullable error);
+typedef void (^GFCallbackBlock) (CLLocation * _Nullable location, NSError * _Nullable error);
 
 /**
- * A GFQuery object handles geo queries at a Firebase location.
+ * A GeoFire instance is used to store geo location data at a Firebase location.
  */
-@interface GFQuery : NSObject
+@interface GeoFire : NSObject
 
 /**
- * The GeoFire this GFQuery object uses.
+ * The Firebase reference this GeoFire instance uses.
  */
-@property (nonatomic, strong, readonly) GeoFire *geoFire;
-
-/*!
- Adds an observer for an event type.
-
- The following event types are supported:
-
-
-     typedef NS_ENUM(NSUInteger, GFEventType) {
-       GFEventTypeKeyEntered, // A key entered the search area
-       GFEventTypeKeyExited,  // A key exited the search area
-       GFEventTypeKeyMoved    // A key moved within the search area
-     };
-
-
- The block is called for each event and key.
-
- Use removeObserverWithFirebaseHandle: to stop receiving callbacks.
-
- @param eventType The event type to receive updates for
- @param block The block that is called for updates
- @return A handle to remove the observer with
-*/
-
-- (FirebaseHandle)observeEventType:(GFEventType)eventType withBlock:(GFQueryResultBlock)block;
+@property (nonatomic, strong, readonly) FIRDatabaseReference *firebaseRef;
 
 /**
- * Adds an observer that is called once all initial GeoFire data has been loaded and the relevant events have
- * been fired for this query. Every time the query criteria is updated, this observer will be called after the
- * updated query has fired the appropriate key entered or key exited events.
+ * The dispatch queue this GeoFire object and all its GFQueries use for callbacks.
+ */
+@property (nonatomic, strong) dispatch_queue_t callbackQueue;
+
+/** @name Creating new GeoFire objects */
+
+/**
+ * Initializes a new GeoFire instance at the given Firebase location.
+ * @param firebase The Firebase location to attach this GeoFire instance to
+ * @return The new GeoFire instance
+ */
+- (id)initWithFirebaseRef:(FIRDatabaseReference *)firebase;
+
+/** @name Setting and Updating Locations */
+
+/**
+ * Updates the location for a key.
+ * @param location The location as a geographic coordinate
+ * @param key The key for which this location is saved
+ */
+- (void)setLocation:(CLLocation *)location
+             forKey:(NSString *)key;
+
+/**
+ * Updates the location for a key and calls the completion callback once the location was successfully updated on the
+ * server.
+ * @param location The location as a geographic coordinate
+ * @param key The key for which this location is saved
+ * @param block The completion block that is called once the location was successfully updated on the server
+ */
+- (void)setLocation:(CLLocation *)location
+             forKey:(NSString *)key
+withCompletionBlock:(nullable GFCompletionBlock)block;
+
+/**
+ * Removes the location for a given key.
+ * @param key The key for which the location is removed
+ */
+- (void)removeKey:(NSString *)key;
+
+/**
+ * Removes the location for a given key and calls the completion callback once the location was successfully updated on
+ * the server.
+ * @param key The key for which the location is removed
+ * @param block The completion block that is called once the location was successfully updated on the server
+ */
+- (void)removeKey:(NSString *)key withCompletionBlock:(nullable GFCompletionBlock)block;
+
+/**
+ * Gets the current location for a key in GeoFire and calls the callback with the location or nil if there is no
+ * location for the key in GeoFire. If an error occurred, the callback will be called with the error and location
+ * will be nil.
  *
- * @param block The block that is called for the ready event
- * @return A handle to remove the observer with
+ * @param key The key to observe the location for
+ * @param callback The callback that is called for the current location
  */
-- (FirebaseHandle)observeReadyWithBlock:(GFReadyBlock)block;
+- (void)getLocationForKey:(NSString *)key
+             withCallback:(GFCallbackBlock)callback;
 
 /**
- * Removes a callback with a given FirebaseHandle. After this no further updates are received for this handle.
- * @param handle The handle that was returned by observeEventType:withBlock:
+ * Creates a new GeoFire query centered at a given location with a given radius. The GFQuery object can be used to query
+ * keys that enter, move, and exit the search radius.
+ * @param location The location at which the query is centered
+ * @param radius The radius in kilometers of the geo query
+ * @return The GFCircleQuery object that can be used for geo queries.
  */
-- (void)removeObserverWithFirebaseHandle:(FirebaseHandle)handle;
+- (GFCircleQuery *)queryAtLocation:(CLLocation *)location
+                        withRadius:(double)radius;
 
 /**
- * Removes all observers for this GFQuery object. Note that with multiple GFQuery objects only this object stops
- * its callbacks.
+ * Creates a new GeoFire query for a given region. The GFQuery object can be used to query
+ * keys that enter, move, and exit the search region.
+ * @param region The region which this query searches
+ * @return The GFRegionQuery object that can be used for geo queries.
  */
-- (void)removeAllObservers;
+- (GFRegionQuery *)queryWithRegion:(MKCoordinateRegion)region;
 
 @end
 

@@ -6,8 +6,6 @@
 //  Copyright (c) 2014 Firebase. All rights reserved.
 //
 
-#import <FirebaseDatabase/FirebaseDatabase.h>
-
 #import "GFQuery.h"
 #import "GFRegionQuery.h"
 #import "GFCircleQuery.h"

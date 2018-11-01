@@ -25,6 +25,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#import <FirebaseDatabase/FirebaseDatabase.h>
 
 #import <Foundation/Foundation.h>
 #import <CoreLocation/CoreLocation.h>
@@ -41,7 +42,7 @@ typedef NS_ENUM(NSUInteger, GFEventType) {
     GFEventTypeKeyMoved
 };
 
-typedef void (^GFQueryResultBlock) (NSString *key, CLLocation *location);
+typedef void (^GFQueryResultBlock) (NSString *key, CLLocation *location, NSNumber *popuplarity, FIRServerValue *timestamp);
 typedef void (^GFReadyBlock) (void);
 
 /**

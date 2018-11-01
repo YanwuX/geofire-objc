@@ -22,8 +22,6 @@
 @property (nonatomic, strong) CLLocation *location;
 @property (nonatomic, strong) GFGeoHash *geoHash;
 @property (nonatomic, strong) NSNumber *popularity;
-@property (nonatomic, strong) FIRServerValue *timestamp;
-
 
 @end
 
@@ -207,7 +205,6 @@
 
 - (void)updateLocationInfo:(CLLocation *)location
                           :(NSNumber *)popularity
-                          :(FIRServerValue *)timestamp
                     forKey:(NSString *)key
 {
     NSAssert(location != nil, @"Internal Error! Location must not be nil!");
@@ -224,7 +221,6 @@
 
     info.location = location;
     info.popularity = popularity;
-    info.timestamp = timestamp;
     info.isInQuery = [self locationIsInQuery:location];
     info.geoHash = [GFGeoHash newWithLocation:location.coordinate];
 
@@ -233,7 +229,7 @@
                                                                       GFQueryResultBlock block,
                                                                       BOOL *stop) {
             dispatch_async(self.geoFire.callbackQueue, ^{
-                block(key, info.location, info.popularity, info.timestamp);
+                block(key, info.location, info.popularity);
             });
         }];
     } else if (!isNew && changedLocation && info.isInQuery) {
@@ -241,7 +237,7 @@
                                                                     GFQueryResultBlock block,
                                                                     BOOL *stop) {
             dispatch_async(self.geoFire.callbackQueue, ^{
-                block(key, info.location, info.popularity, info.timestamp);
+                block(key, info.location, info.popularity);
             });
         }];
     } else if (wasInQuery && !info.isInQuery) {
@@ -249,7 +245,7 @@
                                                                      GFQueryResultBlock block,
                                                                      BOOL *stop) {
             dispatch_async(self.geoFire.callbackQueue, ^{
-                block(key, info.location, info.popularity, info.timestamp);
+                block(key, info.location, info.popularity);
             });
         }];
     }
@@ -271,7 +267,7 @@
         CLLocation *location = [GeoFire locationFromValue:snapshot.value];
         if (location != nil) {
             NSDictionary *dict = snapshot.value;
-            [self updateLocationInfo:location: [dict objectForKey:@"p"]: [dict objectForKey:@"t"] forKey:snapshot.key];
+            [self updateLocationInfo:location :[dict objectForKey:@"p"] forKey:snapshot.key];
         } else {
             // TODO: error?
         }
@@ -284,7 +280,7 @@
         CLLocation *location = [GeoFire locationFromValue:snapshot.value];
         if (location != nil) {
             NSDictionary *dict = snapshot.value;
-            [self updateLocationInfo:location: [dict objectForKey:@"p"]: [dict objectForKey:@"t"] forKey:snapshot.key];
+            [self updateLocationInfo:location :[dict objectForKey:@"p"] forKey:snapshot.key];
         } else {
             // TODO: error?
         }
@@ -314,7 +310,7 @@
                                                                                          GFQueryResultBlock block,
                                                                                          BOOL *stop) {
                                 dispatch_async(self.geoFire.callbackQueue, ^{
-                                    block(key, location, [dict objectForKey:@"p"], [dict objectForKey:@"t"]);
+                                    block(key, location, [dict objectForKey:@"p"]);
                                 });
                             }];
                         }
@@ -401,7 +397,7 @@
     }];
     self.queries = newQueries;
     [self.locationInfos enumerateKeysAndObjectsUsingBlock:^(id key, GFQueryLocationInfo *info, BOOL *stop) {
-        [self updateLocationInfo:info.location :info.popularity :info.timestamp forKey:key];
+        [self updateLocationInfo:info.location :info.popularity forKey:key];
     }];
     NSMutableArray *oldLocations = [NSMutableArray array];
     [self.locationInfos enumerateKeysAndObjectsUsingBlock:^(id key, GFQueryLocationInfo *info, BOOL *stop) {
@@ -485,7 +481,7 @@
                                                                                 GFQueryLocationInfo *info,
                                                                                 BOOL *stop) {
                             if (info.isInQuery) {
-                                block(key, info.location, info.popularity, info.timestamp);
+                                block(key, info.location, info.popularity);
                             }
                         }];
                     };

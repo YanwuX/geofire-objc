@@ -21,6 +21,9 @@
 @property (nonatomic) BOOL isInQuery;
 @property (nonatomic, strong) CLLocation *location;
 @property (nonatomic, strong) GFGeoHash *geoHash;
+@property (nonatomic, strong) NSNumber *popularity;
+@property (nonatomic, strong) FIRServerValue *timestamp;
+
 
 @end
 
@@ -203,6 +206,8 @@
 }
 
 - (void)updateLocationInfo:(CLLocation *)location
+                          :(NSNumber *)popularity
+                          :(FIRServerValue *)timestamp
                     forKey:(NSString *)key
 {
     NSAssert(location != nil, @"Internal Error! Location must not be nil!");
@@ -218,6 +223,8 @@
     BOOL wasInQuery = info.isInQuery;
 
     info.location = location;
+    info.popularity = popularity;
+    info.timestamp = timestamp;
     info.isInQuery = [self locationIsInQuery:location];
     info.geoHash = [GFGeoHash newWithLocation:location.coordinate];
 
@@ -226,7 +233,7 @@
                                                                       GFQueryResultBlock block,
                                                                       BOOL *stop) {
             dispatch_async(self.geoFire.callbackQueue, ^{
-                block(key, info.location);
+                block(key, info.location, info.popularity, info.timestamp);
             });
         }];
     } else if (!isNew && changedLocation && info.isInQuery) {
@@ -234,7 +241,7 @@
                                                                     GFQueryResultBlock block,
                                                                     BOOL *stop) {
             dispatch_async(self.geoFire.callbackQueue, ^{
-                block(key, info.location);
+                block(key, info.location, info.popularity, info.timestamp);
             });
         }];
     } else if (wasInQuery && !info.isInQuery) {
@@ -242,7 +249,7 @@
                                                                      GFQueryResultBlock block,
                                                                      BOOL *stop) {
             dispatch_async(self.geoFire.callbackQueue, ^{
-                block(key, info.location);
+                block(key, info.location, info.popularity, info.timestamp);
             });
         }];
     }
@@ -263,7 +270,8 @@
     @synchronized(self) {
         CLLocation *location = [GeoFire locationFromValue:snapshot.value];
         if (location != nil) {
-            [self updateLocationInfo:location forKey:snapshot.key];
+            NSDictionary *dict = snapshot.value;
+            [self updateLocationInfo:location: [dict objectForKey:@"p"]: [dict objectForKey:@"t"] forKey:snapshot.key];
         } else {
             // TODO: error?
         }
@@ -275,7 +283,8 @@
     @synchronized(self) {
         CLLocation *location = [GeoFire locationFromValue:snapshot.value];
         if (location != nil) {
-            [self updateLocationInfo:location forKey:snapshot.key];
+            NSDictionary *dict = snapshot.value;
+            [self updateLocationInfo:location: [dict objectForKey:@"p"]: [dict objectForKey:@"t"] forKey:snapshot.key];
         } else {
             // TODO: error?
         }
@@ -291,6 +300,7 @@
             [[self.geoFire firebaseRefForLocationKey:snapshot.key] observeSingleEventOfType:FIRDataEventTypeValue withBlock:^(FIRDataSnapshot *snapshot) {
                 @synchronized(self) {
                     CLLocation *location = [GeoFire locationFromValue:snapshot.value];
+                    NSDictionary *dict = snapshot.value;
                     GFGeoHash *geoHash = (location) ? [[GFGeoHash alloc] initWithLocation:location.coordinate] : nil;
                     // Only notify observers if key is not part of any other geohash query or this actually might not be
                     // a key exited event, but a key moved or entered event. These events will be triggered by updates
@@ -304,7 +314,7 @@
                                                                                          GFQueryResultBlock block,
                                                                                          BOOL *stop) {
                                 dispatch_async(self.geoFire.callbackQueue, ^{
-                                    block(key, location);
+                                    block(key, location, [dict objectForKey:@"p"], [dict objectForKey:@"t"]);
                                 });
                             }];
                         }
@@ -391,7 +401,7 @@
     }];
     self.queries = newQueries;
     [self.locationInfos enumerateKeysAndObjectsUsingBlock:^(id key, GFQueryLocationInfo *info, BOOL *stop) {
-        [self updateLocationInfo:info.location forKey:key];
+        [self updateLocationInfo:info.location :info.popularity :info.timestamp forKey:key];
     }];
     NSMutableArray *oldLocations = [NSMutableArray array];
     [self.locationInfos enumerateKeysAndObjectsUsingBlock:^(id key, GFQueryLocationInfo *info, BOOL *stop) {
@@ -475,7 +485,7 @@
                                                                                 GFQueryLocationInfo *info,
                                                                                 BOOL *stop) {
                             if (info.isInQuery) {
-                                block(key, info.location);
+                                block(key, info.location, info.popularity, info.timestamp);
                             }
                         }];
                     };
